@@ -1,30 +1,118 @@
-# helloworld project
+# Quarkus Demo App
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Minimal Quarkus REST API designed for container deployment demos on OpenShift and Kubernetes. Used as the demo application in the [OpenShift 4.4 Workshop: Knative, Tekton & Quarkus](https://github.com/jefrnc/openshift-tekton-workshop).
 
-If you want to learn more about Quarkus, please visit its website: https://quarkus.io/ .
+**Watch the workshop:** [YouTube](https://www.youtube.com/watch?v=gs71zQUA_6k&t=1806s)
 
-## Running the application in dev mode
+## Tech Stack
 
-You can run your application in dev mode that enables live coding using:
+- **Quarkus** 1.4.2 — Supersonic, subatomic Java framework
+- **RESTEasy** — JAX-RS REST endpoints
+- **GraalVM** — Native image compilation support
+- **Java 11**
+
+## Quick Start
+
+### Run in dev mode (live reload)
+
+```bash
+./mvnw compile quarkus:dev
 ```
-./mvnw quarkus:dev
+
+App available at http://localhost:8080
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/hello` | Returns "hello world!!!" |
+| GET | `/` | Quarkus welcome page |
+
+### Run tests
+
+```bash
+./mvnw test
 ```
 
-## Packaging and running the application
+## Build Options
 
-The application can be packaged using `./mvnw package`.
-It produces the `helloworld-1.0.0-SNAPSHOT-runner.jar` file in the `/target` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/lib` directory.
+### JVM mode
 
-The application is now runnable using `java -jar target/helloworld-1.0.0-SNAPSHOT-runner.jar`.
+```bash
+./mvnw package
+java -jar target/helloworld-1.0.0-SNAPSHOT-runner.jar
+```
 
-## Creating a native executable
+### Native mode (GraalVM)
 
-You can create a native executable using: `./mvnw package -Pnative`.
+```bash
+# With GraalVM installed
+./mvnw package -Pnative
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using: `./mvnw package -Pnative -Dquarkus.native.container-build=true`.
+# Without GraalVM (uses Docker)
+./mvnw package -Pnative -Dquarkus.native.container-build=true
 
-You can then execute your native executable with: `./target/helloworld-1.0.0-SNAPSHOT-runner`
+# Run the native binary
+./target/helloworld-1.0.0-SNAPSHOT-runner
+```
 
-If you want to learn more about building native executables, please consult https://quarkus.io/guides/building-native-image.
+## Deploy to OpenShift
+
+```bash
+oc new-project quarkus-demo
+oc new-build --binary --name=quarkus-demo -l app=quarkus-demo
+
+# Use native Dockerfile
+oc patch bc/quarkus-demo -p '{"spec":{"strategy":{"dockerStrategy":{"dockerfilePath":"src/main/docker/Dockerfile.native"}}}}'
+
+oc start-build quarkus-demo --from-dir=. --follow
+oc new-app --image-stream=quarkus-demo:latest
+oc expose service quarkus-demo
+```
+
+## Deploy to Kubernetes / k3s
+
+```bash
+# Build Docker image
+docker build -f src/main/docker/Dockerfile.native -t quarkus-demo .
+
+# Run locally
+docker run -d -p 8080:8080 quarkus-demo
+
+# Or apply to k3s/k8s
+kubectl create deployment quarkus-demo --image=quarkus-demo --port=8080
+kubectl expose deployment quarkus-demo --type=NodePort --port=8080
+```
+
+## Project Structure
+
+```
+quarkus-demo-app/
+├── src/
+│   ├── main/
+│   │   ├── java/com/semperti/
+│   │   │   └── ExampleResource.java    # REST endpoint
+│   │   ├── docker/
+│   │   │   ├── Dockerfile.jvm          # JVM-based container
+│   │   │   └── Dockerfile.native       # Native binary container
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       └── META-INF/resources/
+│   │           └── index.html          # Welcome page
+│   └── test/
+│       └── java/com/semperti/
+│           ├── ExampleResourceTest.java
+│           └── NativeExampleResourceIT.java
+├── pom.xml
+└── mvnw
+```
+
+## Related
+
+- [openshift-tekton-workshop](https://github.com/jefrnc/openshift-tekton-workshop) — Full workshop repo with Tekton pipelines, Knative configs, and deployment guides
+- [Quarkus Documentation](https://quarkus.io/)
+- [Quarkus Project Generator](https://code.quarkus.io/)
+
+## License
+
+MIT
